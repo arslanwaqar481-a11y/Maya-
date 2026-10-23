@@ -30,249 +30,311 @@ object JarvisCommandParser {
     fun parse(input: String, wakeWordOption: WakeWordOption = WakeWordOption.HEY_JARVIS): ParsedCommand {
         val trimmed = input.trim().lowercase()
 
-        // Check if input is only a wake word call
-        val isJustWakeWord = listOf("hey jarvis", "jarvis", "ok jarvis", "hey maya", "maya", "ok maya").contains(trimmed)
-        if (isJustWakeWord) {
-            val isMaya = trimmed.contains("maya")
-            val greeting = if (isMaya) WakeWordOption.MAYA.voiceGreeting else WakeWordOption.HEY_JARVIS.voiceGreeting
+        // 1. Check if input is solely a wake-word trigger (English, Roman Urdu, or Urdu script)
+        val jarvisWakeKeywords = listOf(
+            "hey jarvis", "jarvis", "ok jarvis",
+            "ہیلو جاروس", "جاروس", "اوکے جاروس", "سنو جاروس", "اے جاروس"
+        )
+        val mayaWakeKeywords = listOf(
+            "hey maya", "maya", "ok maya",
+            "ہیلو مایا", "مایا", "اوکے مایا", "سنو مایا", "اے مایا"
+        )
+
+        val isJarvisOnly = jarvisWakeKeywords.contains(trimmed)
+        val isMayaOnly = mayaWakeKeywords.contains(trimmed)
+
+        if (isJarvisOnly || isMayaOnly) {
+            val greeting = if (isMayaOnly) WakeWordOption.MAYA.voiceGreeting else WakeWordOption.HEY_JARVIS.voiceGreeting
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.Conversation(greeting),
                 spokenResponse = greeting,
-                actionLabel = if (isMaya) "WAKE_MAYA_TRIGGERED" else "WAKE_JARVIS_TRIGGERED"
+                actionLabel = if (isMayaOnly) "WAKE_MAYA_TRIGGERED" else "WAKE_JARVIS_TRIGGERED"
             )
         }
 
-        // Strip wake-word prefix if present
+        // 2. Strip wake-word prefixes if user said e.g. "Jarvis torch on" or "جاروس ٹارچ جلاؤ"
         var body = trimmed
-        listOf("hey jarvis", "jarvis", "ok jarvis", "hey maya", "maya", "ok maya").forEach { kw ->
+        (jarvisWakeKeywords + mayaWakeKeywords).forEach { kw ->
             if (body.startsWith("$kw ")) {
                 body = body.removePrefix("$kw ").trim()
             }
         }
         val clean = body
-        val honorific = if (wakeWordOption == WakeWordOption.MAYA) "" else ", Sir"
+        val honorific = if (wakeWordOption == WakeWordOption.MAYA) "" else "، جناب"
 
-        // 1. Flashlight / Torch
-        if (clean.contains("torch on") || clean.contains("flashlight on") ||
-            clean.contains("light on") || clean.contains("light jalao") || clean.contains("flash on")
+        // 3. Flashlight / Torch (آن / آف)
+        if (clean.contains("torch on") || clean.contains("flashlight on") || clean.contains("light on") ||
+            clean.contains("light jalao") || clean.contains("flash on") ||
+            clean.contains("ٹارچ آن") || clean.contains("ٹارچ جلاؤ") || clean.contains("ٹارچ جلا دو") ||
+            clean.contains("لائٹ جلاؤ") || clean.contains("لائٹ آن") || clean.contains("روشنی کرو") ||
+            clean.contains("ٹارچ چالو") || clean.contains("torch jalao")
         ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.ToggleTorch(true),
-                spokenResponse = if (wakeWordOption == WakeWordOption.MAYA) "Flashlight turned on." else "Auxiliary optics illuminated, Sir.",
+                spokenResponse = "ٹارچ آن کر دی گئی ہے$honorific۔",
                 actionLabel = "TORCH_ON"
             )
         }
 
-        if (clean.contains("torch off") || clean.contains("flashlight off") ||
-            clean.contains("light off") || clean.contains("light band karo") || clean.contains("flash off")
+        if (clean.contains("torch off") || clean.contains("flashlight off") || clean.contains("light off") ||
+            clean.contains("light band karo") || clean.contains("flash off") ||
+            clean.contains("ٹارچ بند") || clean.contains("ٹارچ آف") || clean.contains("لائٹ بند") ||
+            clean.contains("لائٹ آف") || clean.contains("روشنی بند") || clean.contains("torch band karo")
         ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.ToggleTorch(false),
-                spokenResponse = if (wakeWordOption == WakeWordOption.MAYA) "Flashlight deactivated." else "Auxiliary optics deactivated, Sir.",
+                spokenResponse = "ٹارچ بند کر دی گئی ہے$honorific۔",
                 actionLabel = "TORCH_OFF"
             )
         }
 
-        // 2. Calling
-        val callRegex = Regex("""(?:call|dial|phone lagao|call karo)\s+([a-zA-Z0-9+\s]+)""")
+        // 4. Calling (کال ملانا)
+        val callRegex = Regex("""(?:call|dial|phone lagao|call karo|کال کرو|فون کرو|کال ملاؤ|فون لگاؤ)\s+([a-zA-Z0-9+\s\u0600-\u06FF]+)""")
         val callMatch = callRegex.find(clean)
         if (callMatch != null) {
             val target = callMatch.groupValues[1].trim()
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.Call(target),
-                spokenResponse = "Initiating voice link to $target, Sir.",
+                spokenResponse = "$target کو کال ملائی جا رہی ہے$honorific۔",
                 actionLabel = "CALL_$target"
             )
         }
 
-        // 3. WhatsApp
-        val waRegex = Regex("""(?:whatsapp|send whatsapp to)\s*(?:([a-zA-Z0-9+\s]+)\s+(?:saying|message|ko))?\s*(.*)""")
-        if (clean.startsWith("whatsapp") || clean.contains("send whatsapp")) {
-            val msg = clean.removePrefix("whatsapp").removePrefix("send whatsapp").trim()
+        // 5. WhatsApp (واٹس ایپ)
+        if (clean.startsWith("whatsapp") || clean.contains("send whatsapp") ||
+            clean.contains("واٹس ایپ") || clean.contains("واٹسایپ")
+        ) {
+            val msg = clean
+                .removePrefix("whatsapp")
+                .removePrefix("send whatsapp")
+                .replace("واٹس ایپ کھولو", "")
+                .replace("واٹس ایپ", "")
+                .trim()
             return ParsedCommand(
                 rawText = input,
-                action = JarvisAction.SendWhatsApp(null, if (msg.isNotBlank()) msg else "Hello from JARVIS"),
-                spokenResponse = "Opening encrypted WhatsApp channel, Sir.",
+                action = JarvisAction.SendWhatsApp(null, if (msg.isNotBlank()) msg else "السلام علیکم"),
+                spokenResponse = "واٹس ایپ کھولا جا رہا ہے$honorific۔",
                 actionLabel = "WHATSAPP"
             )
         }
 
-        // 4. SMS / Message
-        if (clean.contains("send message") || clean.contains("sms") || clean.contains("message bhej")) {
-            val msg = clean.replace(Regex("(send message|sms|message bhej|ko|to)"), "").trim()
+        // 6. SMS / Messaging (پیغام)
+        if (clean.contains("send message") || clean.contains("sms") || clean.contains("message bhej") ||
+            clean.contains("میسج بھیجو") || clean.contains("پیغام بھیجو") || clean.contains("ایس ایم ایس")
+        ) {
+            val msg = clean
+                .replace(Regex("(send message|sms|message bhej|ko|to|میسج بھیجو|پیغام بھیجو|کو)"), "")
+                .trim()
             return ParsedCommand(
                 rawText = input,
-                action = JarvisAction.SendSms("", if (msg.isNotBlank()) msg else "Message from JARVIS"),
-                spokenResponse = "Preparing transmission protocol, Sir.",
+                action = JarvisAction.SendSms("", if (msg.isNotBlank()) msg else "السلام علیکم"),
+                spokenResponse = "پیغام کی ونڈو کھولی جا رہی ہے$honorific۔",
                 actionLabel = "SEND_SMS"
             )
         }
 
-        // 5. Volume & Acoustics
-        if (clean.contains("volume up") || clean.contains("awaz badhao") || clean.contains("louder")) {
+        // 7. Volume & Acoustics (آواز)
+        if (clean.contains("volume up") || clean.contains("awaz badhao") || clean.contains("louder") ||
+            clean.contains("آواز بڑھاؤ") || clean.contains("آواز تیز کرو") || clean.contains("آواز اونچی کرو")
+        ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.AdjustVolume(true),
-                spokenResponse = "Amplifying audio output, Sir.",
+                spokenResponse = "آواز تیز کر دی گئی ہے$honorific۔",
                 actionLabel = "VOLUME_UP"
             )
         }
-        if (clean.contains("volume down") || clean.contains("awaz kam karo") || clean.contains("quieter")) {
+        if (clean.contains("volume down") || clean.contains("awaz kam karo") || clean.contains("quieter") ||
+            clean.contains("آواز کم کرو") || clean.contains("آواز آہستہ کرو") || clean.contains("آواز دھیمی کرو")
+        ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.AdjustVolume(false),
-                spokenResponse = "Attenuating audio gain, Sir.",
+                spokenResponse = "آواز کم کر دی گئی ہے$honorific۔",
                 actionLabel = "VOLUME_DOWN"
             )
         }
-        if (clean.contains("silent") || clean.contains("mute") || clean.contains("shant")) {
+        if (clean.contains("silent") || clean.contains("mute") || clean.contains("shant") ||
+            clean.contains("سائلنٹ کرو") || clean.contains("خاموش کرو") || clean.contains("سائلنٹ موڈ")
+        ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.SetRinger("SILENT"),
-                spokenResponse = "Stealth audio mode engaged. Ringer silenced.",
+                spokenResponse = "فون کو سائلنٹ موڈ پر لگا دیا گیا ہے$honorific۔",
                 actionLabel = "RINGER_SILENT"
             )
         }
-        if (clean.contains("normal sound") || clean.contains("unmute") || clean.contains("ringer normal")) {
+        if (clean.contains("normal sound") || clean.contains("unmute") || clean.contains("ringer normal") ||
+            clean.contains("نارمل موڈ") || clean.contains("گھنٹی کھولو") || clean.contains("آواز کھولو")
+        ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.SetRinger("NORMAL"),
-                spokenResponse = "Standard acoustic frequencies restored, Sir.",
+                spokenResponse = "فون کی گھنٹی بحال کر دی گئی ہے$honorific۔",
                 actionLabel = "RINGER_NORMAL"
             )
         }
 
-        // 6. Battery & Telemetry
-        if (clean.contains("battery") || clean.contains("power level") || clean.contains("charge kitna") || clean.contains("energy")) {
+        // 8. Battery & Power Status (بیٹری)
+        if (clean.contains("battery") || clean.contains("power level") || clean.contains("charge kitna") || clean.contains("energy") ||
+            clean.contains("بیٹری بتاؤ") || clean.contains("بیٹری کتنی ہے") || clean.contains("کتنا چارج ہے") || clean.contains("بیٹری چارج")
+        ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.CheckBattery,
-                spokenResponse = "Checking power core diagnostics, Sir.",
+                spokenResponse = "بیٹری کی صورتحال چیک کی جا رہی ہے$honorific۔",
                 actionLabel = "CHECK_BATTERY"
             )
         }
 
-        // 7. Schedule Queries & Reminders
+        // 9. Schedule Query (آج کا شیڈول)
         if (clean.contains("what is my schedule") || clean.contains("today's agenda") ||
             clean.contains("aaj kya kaam") || clean.contains("read schedule") || clean.contains("my reminders") ||
-            clean.contains("show schedule") || clean == "schedule"
+            clean.contains("show schedule") || clean == "schedule" ||
+            clean.contains("آج کیا کام ہے") || clean.contains("شیڈول بتاؤ") || clean.contains("میرا شیڈول") ||
+            clean.contains("شیڈول پڑھو") || clean.contains("آج کی مصروفیات")
         ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.ReadSchedule,
-                spokenResponse = "Accessing your tactical itinerary, Sir.",
+                spokenResponse = "آج کے شیڈول کی تفصیلات حاضر ہیں$honorific۔",
                 actionLabel = "READ_SCHEDULE"
             )
         }
 
-        if (clean.contains("remind me") || clean.contains("add reminder") || clean.contains("yaad dilana") || clean.startsWith("schedule ")) {
+        // 10. Add Reminder (یاد دہانی)
+        if (clean.contains("remind me") || clean.contains("add reminder") || clean.contains("yaad dilana") || clean.startsWith("schedule ") ||
+            clean.contains("یاد دلانا") || clean.contains("شیڈول کرو") || clean.contains("کام درج کرو") || clean.contains("یاد دہانی")
+        ) {
             val task = clean
                 .replace("remind me to", "")
                 .replace("remind me", "")
                 .replace("add reminder", "")
                 .replace("yaad dilana", "")
                 .replace("schedule", "")
+                .replace("یاد دلانا", "")
+                .replace("شیڈول کرو", "")
+                .replace("کام درج کرو", "")
                 .trim()
-            val finalTask = if (task.isNotBlank()) task.replaceFirstChar { it.uppercase() } else "New Directive"
+            val finalTask = if (task.isNotBlank()) task else "نیا کام"
             return ParsedCommand(
                 rawText = input,
-                action = JarvisAction.AddReminder(finalTask, "Scheduled"),
-                spokenResponse = "Affirmative, Sir. Added '$finalTask' to your schedule.",
+                action = JarvisAction.AddReminder(finalTask, "مقررہ وقت"),
+                spokenResponse = "آپ کے شیڈول میں '$finalTask' درج کر لیا گیا ہے$honorific۔",
                 actionLabel = "ADD_REMINDER"
             )
         }
 
-        // 8. Morning Briefing / Diagnostics
+        // 11. Morning Briefing / Diagnostics (صبح کا بریفنگ)
         if (clean.contains("morning briefing") || clean.contains("good morning") ||
-            clean.contains("subah ka briefing") || clean.contains("status report") || clean.contains("system status")
+            clean.contains("subah ka briefing") || clean.contains("status report") || clean.contains("system status") ||
+            clean.contains("صبح کا بریفنگ") || clean.contains("صبح بخیر") || clean.contains("سسٹم رپورٹ")
         ) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.MorningBriefing,
-                spokenResponse = "Good morning, Sir. Core reactors are stable. All system diagnostics report nominal efficiency.",
+                spokenResponse = "صبح بخیر جناب! تمام سسٹمز بہترین حالت میں ہیں۔ بیٹری اور میموری بالکل نارمل ہیں اور میں آپ کے اگلے حکم کا منتظر ہوں۔",
                 actionLabel = "MORNING_BRIEFING"
             )
         }
 
-        // 9. Hardware Settings
-        if (clean.contains("wifi") || clean.contains("wi-fi")) {
+        // 12. Hardware Settings (وائی فائی / بلوٹوتھ)
+        if (clean.contains("wifi") || clean.contains("wi-fi") || clean.contains("وائی فائی")) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.OpenWifiSettings,
-                spokenResponse = "Deploying Wi-Fi telemetry controls.",
+                spokenResponse = "وائی فائی کی سیٹنگز کھولی جا رہی ہیں$honorific۔",
                 actionLabel = "SETTINGS_WIFI"
             )
         }
-        if (clean.contains("bluetooth")) {
+        if (clean.contains("bluetooth") || clean.contains("بلوٹوتھ")) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.OpenBluetoothSettings,
-                spokenResponse = "Deploying Bluetooth relay configuration.",
+                spokenResponse = "بلوٹوتھ کی سیٹنگز کھولی جا رہی ہیں$honorific۔",
                 actionLabel = "SETTINGS_BLUETOOTH"
             )
         }
 
-        // 10. App Launching ("open [app]", "kholna [app]", "launch [app]")
-        val launchRegex = Regex("""(?:open|launch|kholo|chalu karo)\s+([a-zA-Z0-9\s]+)""")
+        // 13. App Launching (ایپ کھولنا)
+        val launchRegex = Regex("""(?:open|launch|kholo|chalu karo|کھولو|چلاؤ|اوپن کرو)\s+([a-zA-Z0-9\s\u0600-\u06FF]+)""")
         val launchMatch = launchRegex.find(clean)
         if (launchMatch != null) {
             val appTarget = launchMatch.groupValues[1].trim()
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.LaunchApp(appTarget),
-                spokenResponse = "Opening $appTarget right away, Sir.",
+                spokenResponse = "$appTarget کھولی جا رہی ہے$honorific۔",
                 actionLabel = "LAUNCH_$appTarget"
             )
         }
 
-        // 11. Conversational Queries
-        if (clean.contains("who are you") || clean.contains("tum kaun ho") || clean.contains("what are you")) {
+        // 14. Conversational Queries (بات چیت)
+        if (clean.contains("who are you") || clean.contains("tum kaun ho") || clean.contains("what are you") ||
+            clean.contains("کون ہو تم") || clean.contains("تم کون ہو") || clean.contains("اپنا تعارف")
+        ) {
+            val identity = if (wakeWordOption == WakeWordOption.MAYA) {
+                "میں مایا ہوں، آپ کی ذاتی نیورل اسسٹنٹ۔ بتائیے میں آپ کی کیا مدد کر سکتی ہوں؟"
+            } else {
+                "میں جاروس ہوں، آپ کا ذاتی انٹیلیجنٹ اسسٹنٹ۔ میں آپ کے تمام موبائل احکامات پورا کرنے کے لیے ہمہ وقت تیار ہوں۔"
+            }
             return ParsedCommand(
                 rawText = input,
-                action = JarvisAction.Conversation("I am JARVIS: Just A Rather Very Intelligent System, running entirely on your Android hardware with zero server dependency."),
-                spokenResponse = "I am JARVIS: Just A Rather Very Intelligent System. Ready to execute your commands, Sir.",
+                action = JarvisAction.Conversation(identity),
+                spokenResponse = identity,
                 actionLabel = "QUERY_IDENTITY"
             )
         }
 
-        if (clean.contains("hello") || clean.contains("hey jarvis") || clean.contains("namaste")) {
+        if (clean.contains("hello") || clean.contains("hey jarvis") || clean.contains("namaste") ||
+            clean.contains("ہیلو") || clean.contains("سلام") || clean.contains("اسلام علیکم") || clean.contains("السلام علیکم")
+        ) {
+            val greeting = "وعلیکم السلام$honorific! میں بالکل تیار ہوں۔ بتائیے کیا حکم ہے؟"
             return ParsedCommand(
                 rawText = input,
-                action = JarvisAction.Conversation("Online and standing by, Sir. What are your orders?"),
-                spokenResponse = "Online and standing by, Sir. What are your orders?",
+                action = JarvisAction.Conversation(greeting),
+                spokenResponse = greeting,
                 actionLabel = "GREETING"
             )
         }
 
-        if (clean.contains("thank you") || clean.contains("thanks") || clean.contains("shukriya")) {
+        if (clean.contains("thank you") || clean.contains("thanks") || clean.contains("shukriya") ||
+            clean.contains("شکریہ") || clean.contains("بہت شکریہ") || clean.contains("مہربانی")
+        ) {
+            val thanks = "حوصلہ افزائی کا بہت شکریہ$honorific! آپ کی خدمت میرا فرض ہے۔"
             return ParsedCommand(
                 rawText = input,
-                action = JarvisAction.Conversation("Always at your service, Sir."),
-                spokenResponse = "Always at your service, Sir.",
+                action = JarvisAction.Conversation(thanks),
+                spokenResponse = thanks,
                 actionLabel = "THANKS"
             )
         }
 
-        // Fallback: If it's a short text like "youtube", "camera", treat as launch request
+        // 15. Single word app keywords
         val singleWord = clean.trim()
-        val commonApps = listOf("youtube", "whatsapp", "camera", "chrome", "maps", "calculator", "settings", "clock")
+        val commonApps = listOf(
+            "youtube", "whatsapp", "camera", "chrome", "maps", "calculator", "settings", "clock",
+            "یوٹیوب", "واٹس ایپ", "کیمرہ", "کیلکولیٹر", "سیٹنگز"
+        )
         if (commonApps.contains(singleWord)) {
             return ParsedCommand(
                 rawText = input,
                 action = JarvisAction.LaunchApp(singleWord),
-                spokenResponse = "Opening $singleWord, Sir.",
+                spokenResponse = "$singleWord کھولی جا رہی ہے$honorific۔",
                 actionLabel = "LAUNCH_$singleWord"
             )
         }
 
+        // Fallback: Urdu polite guidance
+        val fallback = "معاف کیجیے گا$honorific، میں یہ سمجھ نہیں پایا۔ آپ مجھ سے ٹارچ جلانے، کال ملانے، ایپ کھولنے، یا شیڈول معلوم کرنے کا کہہ سکتے ہیں۔"
         return ParsedCommand(
             rawText = input,
             action = JarvisAction.Unknown,
-            spokenResponse = "I heard '$input', Sir. You can ask me to open apps, toggle the torch, call contacts, check battery, or update your schedule.",
+            spokenResponse = fallback,
             actionLabel = "UNKNOWN"
         )
     }

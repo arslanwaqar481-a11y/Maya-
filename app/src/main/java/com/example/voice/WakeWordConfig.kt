@@ -16,22 +16,22 @@ enum class WakeWordOption(
         displayName = "Hey Jarvis",
         triggerPhrase = "Hey Jarvis",
         personaTitle = "Stark Tactical Core",
-        description = "British male baritone persona. Formally articulated, concise, calibrated for executive tactical directives.",
-        voiceGreeting = "At your command, Sir. Hey Jarvis wake-word calibrated and armed.",
+        description = "مردانہ باوقار اردو آواز۔ جامع، تیز اور موبائل کنٹرول کے لیے تیار۔",
+        voiceGreeting = "جی جناب! جاروس حاضر ہے۔ فرمائیے کیا حکم ہے؟",
         voicePitch = 0.95f,
-        voiceRate = 1.05f,
-        defaultKeywords = listOf("hey jarvis", "jarvis", "ok jarvis")
+        voiceRate = 1.0f,
+        defaultKeywords = listOf("hey jarvis", "jarvis", "ok jarvis", "جاروس", "ہیلو جاروس", "اوکے جاروس", "سنو جاروس")
     ),
     MAYA(
         id = "maya",
         displayName = "MAYA",
         triggerPhrase = "Maya",
         personaTitle = "Quantum Neural Persona",
-        description = "Adaptive high-speed female AI assistant. Multilingual phonetics with rapid natural language execution.",
-        voiceGreeting = "MAYA neural matrix online. Listening for your voice directives.",
+        description = "تیز رفتار اور جدید زنانہ اردو آواز۔ ہر وقت رہنمائی کے لیے تیار۔",
+        voiceGreeting = "مایا نیورل اسسٹنٹ آن لائن ہے۔ بتائیے میں آپ کی کیا مدد کر سکتی ہوں؟",
         voicePitch = 1.25f,
-        voiceRate = 1.10f,
-        defaultKeywords = listOf("hey maya", "maya", "ok maya")
+        voiceRate = 1.05f,
+        defaultKeywords = listOf("hey maya", "maya", "ok maya", "مایا", "ہیلو مایا", "اوکے مایا", "سنو مایا")
     )
 }
 

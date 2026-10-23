@@ -22,15 +22,20 @@ class JarvisVoiceSpeaker(
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = tts?.setLanguage(Locale.UK)
+            // Priority 1: Urdu (Pakistan)
+            var result = tts?.setLanguage(Locale("ur", "PK"))
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                // Fallback to English US or Default
-                tts?.setLanguage(Locale.US)
+                // Priority 2: Generic Urdu
+                result = tts?.setLanguage(Locale("ur"))
+            }
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                // Fallback: Hindustani / Hindi engine handles Urdu phonetics perfectly
+                tts?.setLanguage(Locale("hi", "IN"))
             }
 
-            // Refined Paul Bettany / JARVIS pitch and cadence
+            // Calibrated pitch and tempo
             tts?.setPitch(0.95f)
-            tts?.setSpeechRate(1.05f)
+            tts?.setSpeechRate(1.0f)
 
             tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
@@ -57,19 +62,27 @@ class JarvisVoiceSpeaker(
         }
     }
 
+    fun updateVoiceParameters(pitch: Float, rate: Float) {
+        tts?.setPitch(pitch)
+        tts?.setSpeechRate(rate)
+    }
+
     fun speak(text: String, flush: Boolean = true) {
         if (!isInitialized) {
             pendingSpeech = text
             return
         }
-        val queueMode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
-        val utteranceId = "JARVIS_${System.currentTimeMillis()}"
-        tts?.speak(text, queueMode, null, utteranceId)
-    }
 
-    fun updateVoiceParameters(pitch: Float, rate: Float) {
-        tts?.setPitch(pitch)
-        tts?.setSpeechRate(rate)
+        // Apply Urdu language setting
+        val urduLocale = Locale("ur", "PK")
+        val check = tts?.setLanguage(urduLocale)
+        if (check == TextToSpeech.LANG_MISSING_DATA || check == TextToSpeech.LANG_NOT_SUPPORTED) {
+            tts?.setLanguage(Locale("ur"))
+        }
+
+        val queueMode = if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+        val utteranceId = "JARVIS_URDU_${System.currentTimeMillis()}"
+        tts?.speak(text, queueMode, null, utteranceId)
     }
 
     fun stop() {

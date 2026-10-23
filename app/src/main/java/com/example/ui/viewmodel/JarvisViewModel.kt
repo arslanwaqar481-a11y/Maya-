@@ -211,15 +211,15 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.value = _uiState.value.copy(lastWakeDetection = result)
 
         if (isTriggered) {
-            speak("${activeWake.displayName} wake-word verified. Sensitivity passed.")
+            speak("${activeWake.displayName} کی آواز تصدیق ہو گئی۔ ٹیسٹ کامیاب رہا۔")
         } else {
-            speak("Acoustic sample below threshold (${(rawConfidence * 100).toInt()}% vs required ${(requiredThreshold * 100).toInt()}%).")
+            speak("آواز کی شدت کم رہی۔ براہ کرم واضح آواز میں بولیے۔")
         }
     }
 
     fun startVoiceListening() {
         _uiState.value = _uiState.value.copy(
-            speechTranscript = "Awaiting acoustic input...",
+            speechTranscript = "آواز سنی جا رہی ہے...",
             statusMessage = null
         )
         speechRecognizer?.startListening()
@@ -251,11 +251,11 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             is JarvisAction.ToggleTorch -> {
                 val ok = phoneController.toggleTorch(action.enable)
                 _uiState.value = _uiState.value.copy(isTorchOn = phoneController.isTorchEnabled())
-                if (!ok) responseText = "Unable to access optical hardware."
+                if (!ok) responseText = "ٹارچ تک رسائی حاصل نہیں ہو سکی۔"
             }
             is JarvisAction.Call -> {
                 val ok = phoneController.makeCall(action.target)
-                if (!ok) responseText = "Communication hardware did not respond."
+                if (!ok) responseText = "کال ملانے میں دشواری پیش آئی۔"
             }
             is JarvisAction.SendWhatsApp -> {
                 phoneController.sendWhatsApp(action.recipient, action.message)
@@ -264,8 +264,8 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                 phoneController.sendSms(action.recipient, action.message)
             }
             is JarvisAction.LaunchApp -> {
-                val result = phoneController.launchAppByName(action.appName)
-                responseText = result.message
+                phoneController.launchAppByName(action.appName)
+                responseText = "${action.appName} کھولی جا رہی ہے۔"
             }
             is JarvisAction.AdjustVolume -> {
                 phoneController.adjustVolume(action.increase)
@@ -281,9 +281,9 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             }
             is JarvisAction.CheckBattery -> {
                 val tele = phoneController.getTelemetry()
-                val chargeMsg = if (tele.isCharging) "Power conduits connected and replenishing." else "Running on internal cells."
-                val honorific = if (activeWake == WakeWordOption.MAYA) "" else ", Sir"
-                responseText = "Battery level is at ${tele.batteryPercent} percent$honorific. $chargeMsg"
+                val chargeMsg = if (tele.isCharging) "اور فون چارج ہو رہا ہے" else "اور فون اندرونی بیٹری پر چل رہا ہے"
+                val honorific = if (activeWake == WakeWordOption.MAYA) "" else "، جناب"
+                responseText = "بیٹری اس وقت ${tele.batteryPercent} فیصد ہے$honorific $chargeMsg۔"
             }
             is JarvisAction.AddReminder -> {
                 addReminder(action.title, action.time, "Voice Directive", "High")
@@ -343,8 +343,8 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         val next = !_uiState.value.isTorchOn
         phoneController.toggleTorch(next)
         _uiState.value = _uiState.value.copy(isTorchOn = phoneController.isTorchEnabled())
-        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else ", Sir"
-        val msg = if (next) "Torch illuminated$honorific." else "Torch turned off$honorific."
+        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else "، جناب"
+        val msg = if (next) "ٹارچ آن کر دی گئی ہے$honorific۔" else "ٹارچ بند کر دی گئی ہے$honorific۔"
         _uiState.value = _uiState.value.copy(jarvisResponse = msg, lastAction = "TORCH_TOGGLE")
         speak(msg)
     }
@@ -352,29 +352,34 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     fun setRingerMode(mode: RingerState) {
         phoneController.setRingerMode(mode)
         _uiState.value = _uiState.value.copy(ringerState = mode)
-        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else ", Sir"
-        val msg = "Acoustic mode switched to ${mode.name.lowercase()}$honorific."
+        val modeUrdu = when (mode) {
+            RingerState.SILENT -> "سائلنٹ"
+            RingerState.VIBRATE -> "وائبریشن"
+            else -> "نارمل"
+        }
+        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else "، جناب"
+        val msg = "فون کو $modeUrdu موڈ پر لگا دیا گیا ہے$honorific۔"
         _uiState.value = _uiState.value.copy(jarvisResponse = msg, lastAction = "RINGER_${mode.name}")
         speak(msg)
     }
 
     fun adjustVolume(increase: Boolean) {
         phoneController.adjustVolume(increase)
-        val dir = if (increase) "increased" else "decreased"
-        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else ", Sir"
-        val msg = "Volume $dir$honorific."
+        val dirUrdu = if (increase) "تیز" else "کم"
+        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else "، جناب"
+        val msg = "آواز $dirUrdu کر دی گئی ہے$honorific۔"
         _uiState.value = _uiState.value.copy(jarvisResponse = msg, lastAction = "VOLUME_ADJUST")
         speak(msg)
     }
 
     fun readScheduleVoice() {
         val list = reminders.value.filter { !it.isCompleted }
-        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else ", Sir"
+        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else "، جناب"
         val msg = if (list.isEmpty()) {
-            "You have no pending items on today's agenda$honorific. All protocols clear."
+            "آج آپ کے شیڈول میں کوئی کام باقی نہیں ہے$honorific۔ تمام امور مکمل ہیں۔"
         } else {
-            val items = list.take(3).joinToString("; ") { "${it.title} at ${it.timeLabel}" }
-            "You have ${list.size} pending tasks on your schedule$honorific: $items."
+            val items = list.take(3).joinToString("، ") { "${it.title} بوقت ${it.timeLabel}" }
+            "آج آپ کے شیڈول میں ${list.size} کام درج ہیں$honorific: $items۔"
         }
         _uiState.value = _uiState.value.copy(jarvisResponse = msg, lastAction = "READ_SCHEDULE")
         speak(msg)
@@ -383,8 +388,8 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     fun triggerMorningBriefing() {
         val tele = phoneController.getTelemetry()
         val pendingCount = reminders.value.count { !it.isCompleted }
-        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else ", Sir"
-        val msg = "Good morning$honorific. Core battery is at ${tele.batteryPercent} percent. Memory usage is optimal at ${tele.ramUsedMb} megabytes. You have $pendingCount operational items on your schedule. All systems prepared."
+        val honorific = if (_uiState.value.wakeWordConfig.selectedWakeWord == WakeWordOption.MAYA) "" else "، جناب"
+        val msg = "صبح بخیر$honorific! بیٹری اس وقت ${tele.batteryPercent} فیصد ہے۔ ریم کی کھپت نارمل ہے۔ آپ کے شیڈول میں $pendingCount امور باقی ہیں۔ سسٹمز مکمل تیار ہیں۔"
         _uiState.value = _uiState.value.copy(jarvisResponse = msg, lastAction = "MORNING_BRIEFING")
         speak(msg)
     }

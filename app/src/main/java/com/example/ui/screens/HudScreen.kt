@@ -85,15 +85,15 @@ fun HudScreen(
     val config = uiState.wakeWordConfig
 
     val quickCommands = listOf(
-        "Morning Briefing",
-        "Torch On",
-        "Torch Off",
-        "Battery Status",
-        "Open WhatsApp",
-        "Open YouTube",
-        "Open Camera",
-        "Silent Mode",
-        "What is my schedule?"
+        "صبح کا بریفنگ",
+        "ٹارچ آن کرو",
+        "ٹارچ بند کرو",
+        "بیٹری بتاؤ",
+        "واٹس ایپ کھولو",
+        "یوٹیوب چلاؤ",
+        "سائلنٹ موڈ",
+        "آج کیا کام ہے",
+        "تم کون ہو"
     )
 
     LazyColumn(
@@ -222,10 +222,10 @@ fun HudScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (uiState.isListening) "ENGAGED // TAP TO STOP" else "INITIALIZE VOICE LINK",
+                            text = if (uiState.isListening) "سن رہا ہوں // روکیں" else "بولنے کے لیے ٹیپ کریں",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            letterSpacing = 0.5.sp
                         )
                     }
 
@@ -300,7 +300,7 @@ fun HudScreen(
                     onValueChange = { viewModel.updateDirectInput(it) },
                     placeholder = {
                         Text(
-                            text = "Enter tactical command (e.g. 'torch on', 'call mom')...",
+                            text = "اردو میں حکم درج کریں (مثلاً: ٹارچ آن، کال کرو)...",
                             color = HudTextMuted,
                             fontSize = 12.sp
                         )

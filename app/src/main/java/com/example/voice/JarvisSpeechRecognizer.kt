@@ -56,11 +56,11 @@ class JarvisSpeechRecognizer(
                         onListeningStateChanged(false)
                         onRmsChanged(0f)
                         val message = when (error) {
-                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech recognized. Please speak clearly, Sir."
-                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Listening timed out."
-                            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error."
-                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission required."
-                            else -> "Voice recognition notice ($error)"
+                            SpeechRecognizer.ERROR_NO_MATCH -> "آواز سمجھ نہیں آئی۔ براہ کرم دوبارہ فرمائیے، جناب۔"
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "آواز سننے کا وقت ختم ہو گیا۔"
+                            SpeechRecognizer.ERROR_AUDIO -> "آڈیو ریکارڈنگ میں خرابی پیش آئی۔"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "مائیکروفون کی اجازت درکار ہے۔"
+                            else -> "آواز کی شناخت میں نوٹس ($error)"
                         }
                         onError(message)
                     }
@@ -88,7 +88,9 @@ class JarvisSpeechRecognizer(
 
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toString())
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ur-PK")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "ur-PK")
+                putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf("ur-PK", "ur", "en-US"))
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                 // Request offline recognition package if downloaded on device
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
@@ -99,7 +101,7 @@ class JarvisSpeechRecognizer(
             Log.e(TAG, "Start listening error: ${e.message}")
             isListening = false
             onListeningStateChanged(false)
-            onError("Failed to engage acoustic sensor: ${e.message}")
+            onError("آواز کا سینسر آن نہ ہو سکا: ${e.message}")
         }
     }
 
